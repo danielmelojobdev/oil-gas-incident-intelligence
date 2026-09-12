@@ -44,32 +44,38 @@ export class RssProvider implements NewsSourceProvider {
     return this.feeds.length > 0;
   }
 
+  /**
+   * Probes several feeds, not just the first.
+   *
+   * The provider aggregates many independent feeds; one of them 404-ing (publishers
+   * move their RSS paths without warning) says nothing about the other twenty.
+   */
   async healthCheck(): Promise<ProviderHealth> {
-    const first = this.feeds[0];
-    if (first?.feedUrl == null) {
-      return {
-        providerId: this.id,
-        healthy: false,
-        message: 'No pollable feeds configured.',
-        checkedAt: new Date().toISOString(),
-      };
+    const checkedAt = new Date().toISOString();
+    const sample = this.feeds.filter((feed) => feed.feedUrl !== null).slice(0, 5);
+
+    if (sample.length === 0) {
+      return { providerId: this.id, healthy: false, message: 'No pollable feeds configured.', checkedAt };
     }
-    try {
-      await fetchText(first.feedUrl, { ...this.http, maxRetries: 0 }, {}, this.id);
-      return {
-        providerId: this.id,
-        healthy: true,
-        message: `${this.feeds.length} feeds configured.`,
-        checkedAt: new Date().toISOString(),
-      };
-    } catch (error) {
-      return {
-        providerId: this.id,
-        healthy: false,
-        message: toErrorMessage(error),
-        checkedAt: new Date().toISOString(),
-      };
-    }
+
+    const results = await mapSettled(sample, 3, async (feed) => {
+      await fetchText(feed.feedUrl as string, { ...this.http, maxRetries: 0 }, {}, `${this.id}:${feed.slug}`);
+      return feed.slug;
+    });
+
+    const reachable = results.filter((result) => result.status === 'fulfilled').length;
+    const dead = sample
+      .filter((_, index) => results[index]?.status === 'rejected')
+      .map((feed) => feed.slug);
+
+    return {
+      providerId: this.id,
+      healthy: reachable > 0,
+      message:
+        `${reachable}/${sample.length} sampled feeds reachable (${this.feeds.length} configured)` +
+        (dead.length === 0 ? '' : `; unreachable: ${dead.join(', ')}`),
+      checkedAt,
+    };
   }
 
   private toRawArticle(item: FeedItem, feed: SourceCatalogueEntry): RawArticle | null {

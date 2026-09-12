@@ -57,6 +57,9 @@ export class GoogleNewsRssProvider implements NewsSourceProvider {
   readonly id = 'google-news-rss';
   readonly kind = 'search' as const;
   readonly defaultTier: SourceTier = 4;
+  /** No published limit, but this is a free endpoint: do not hammer it. */
+  readonly minRequestIntervalMs = 700;
+  readonly maxQueriesPerScan = 30;
 
   constructor(private readonly http: HttpOptions) {}
 

@@ -12,7 +12,9 @@
     "scan": "tsx src/cli/scan.ts",
     "seed:mock": "tsx src/cli/seed-mock.ts",
     "typecheck": "tsc -b",
-    "build:cli": "esbuild src/cli/scan.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/scan.js --external:fastify --external:@fastify/cors --external:@fastify/rate-limit --external:postgres --external:zod"
+    "build:cli": "esbuild src/cli/scan.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/scan.js --external:fastify --external:@fastify/cors --external:@fastify/rate-limit --external:postgres --external:zod",
+    "health": "tsx src/cli/health.ts",
+    "explain": "tsx src/cli/explain.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",

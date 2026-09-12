@@ -37,6 +37,20 @@ export interface NewsSourceProvider {
   readonly id: string;
   readonly kind: 'search' | 'feed' | 'regulator' | 'mock';
   readonly defaultTier: SourceTier;
+  /**
+   * Minimum gap between two requests to this provider, in milliseconds.
+   *
+   * Some public APIs publish a pacing rule rather than a quota (GDELT asks for one
+   * request every five seconds and answers 429 otherwise). 0 means unpaced.
+   */
+  readonly minRequestIntervalMs?: number;
+  /**
+   * Cap on how many of the generated queries this provider is given in one scan.
+   *
+   * A heavily paced provider would otherwise dominate the wall-clock time of the run,
+   * so it receives only the highest-priority queries.
+   */
+  readonly maxQueriesPerScan?: number;
   /** True when the provider has everything it needs (API key, feed list) to run. */
   isAvailable(): boolean;
   healthCheck(): Promise<ProviderHealth>;

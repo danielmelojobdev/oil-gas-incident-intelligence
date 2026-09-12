@@ -161,3 +161,71 @@ hard exclusion list (mining, aviation, road, rail, residential fires, solar, win
 
 **Consequences.** §4 of the brief — "the isolated presence of `fire`/`explosion` is not sufficient"
 — is enforced before any spend, and is covered by unit tests with real-world false positives.
+
+
+---
+
+## D15 — Glossary terms match on word boundaries, with explicit inflections
+
+**Context.** The first scan against live RSS and Google News produced a 33% false
+positive rate. The single worst offender was substring matching: `text.includes('oil')`
+matched **"s-oil"**, so an HSE prosecution about a worker crushed in a trench collapse
+was filed as an Oil & Gas incident with a relevance score of 80.
+
+**Decision.** Glossary terms are compiled to whole-word regexes with an optional plural
+suffix. Verb inflections ("released", "leaking", "ruptured") are listed **explicitly**
+in the glossary rather than derived with a generic `-ed/-ing` rule.
+
+**Why not a generic suffix rule.** It would turn the event term "fire" into "fired" and
+file every executive dismissal at an oil company as a safety event. The explicit list
+is longer but auditable, and each entry can be justified.
+
+**Consequences.** Precision improved sharply; the plural allowance had to be added
+immediately afterwards, because `\boil\b` alone rejected a genuine ExxonMobil
+hydrocarbon-*leaks* prosecution. Both directions are covered by regression tests built
+from the real headlines.
+
+---
+
+## D16 — Some exclusion domains cannot be overridden by an Oil & Gas anchor
+
+**Context.** An anchor phrase rescues an article from an exclusion domain, so that a
+helicopter crash ferrying crew to a platform survives the "aviation" exclusion. But a
+vendor market-research report titled *"Blowout Preventer Market Growth ... Expected To
+Reach $45.02 Billion By 2030"* is packed with anchor terms and is still not an event.
+
+**Decision.** `ExclusionDomain.overridable` defaults to true; `market-news` sets it to
+false. Domains that describe real-world events stay overridable; domains that are not
+events at all do not.
+
+**Consequences.** Market, macro and industry-forecast coverage is rejected outright, no
+matter how much of our vocabulary it borrows.
+
+---
+
+## D17 — "blowout" is an event term, never an anchor
+
+**Context.** Bare "blowout" was both an event term and an Oil & Gas anchor, which made
+it self-sufficient evidence. *"How to make your salon blowout last for days"* scored 70
+and entered the feed.
+
+**Decision.** Only `blowout preventer`, `well blowout` and `oil/gas well blowout` are
+anchors. Bare "blowout" contributes an event signal and nothing more, so it still needs
+an independent industry signal. The Portuguese glossary's bare `blowout` strong phrase
+became `blowout de poço` for the same reason.
+
+---
+
+## D18 — Providers declare their own pacing
+
+**Context.** GDELT publishes a one-request-per-five-seconds rule and answers 429
+otherwise. Retries and the circuit breaker do not help: the fan-out itself is the
+problem.
+
+**Decision.** `NewsSourceProvider` gained `minRequestIntervalMs` and
+`maxQueriesPerScan`. The scanner paces each provider through a per-key
+`RateLimiter` that reserves slots synchronously, so concurrent callers queue instead
+of firing together. A heavily paced provider receives only the highest-priority queries.
+
+**Consequences.** Well-behaved clients of free public APIs, and a scan whose wall-clock
+time is not dominated by the slowest-paced source.

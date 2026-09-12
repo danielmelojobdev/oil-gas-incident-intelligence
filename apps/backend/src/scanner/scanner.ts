@@ -52,6 +52,7 @@ import type { NewsSourceProvider, ProviderContext } from '../news/news-source-pr
 import { isOilGasDedicatedUrl } from '../news/feeds';
 import type { NotificationDispatcher } from './notifications';
 import { CircuitBreaker } from '../util/circuit-breaker';
+import { RateLimiter } from '../util/rate-limiter';
 import { mapSettled } from '../util/concurrency';
 import { toErrorMessage } from '../util/errors';
 import { SCAN_STAGES } from './types';
@@ -79,12 +80,18 @@ interface ProviderStats {
 
 export class AccidentNewsScanner {
   private readonly breakers = new Map<string, CircuitBreaker>();
+  private readonly rateLimiter: RateLimiter;
   private aiCalls = 0;
 
   constructor(private readonly options: ScannerOptions) {
+    const intervals = new Map<string, number>();
     for (const provider of options.providers) {
       this.breakers.set(provider.id, new CircuitBreaker(provider.id));
+      if (provider.minRequestIntervalMs !== undefined && provider.minRequestIntervalMs > 0) {
+        intervals.set(provider.id, provider.minRequestIntervalMs);
+      }
     }
+    this.rateLimiter = new RateLimiter(intervals);
   }
 
   /**
@@ -280,9 +287,11 @@ export class AccidentNewsScanner {
       excludeKeywords: request.config.excludeKeywords,
     };
 
+    // Queries arrive priority-ordered, so a capped provider gets the best ones.
     const tasks: { provider: NewsSourceProvider; query: SearchQuery }[] = [];
     for (const provider of this.options.providers) {
-      for (const query of queries) tasks.push({ provider, query });
+      const budget = provider.maxQueriesPerScan ?? queries.length;
+      for (const query of queries.slice(0, budget)) tasks.push({ provider, query });
     }
 
     const results = await mapSettled(tasks, 6, async ({ provider, query }) => {
@@ -303,6 +312,8 @@ export class AccidentNewsScanner {
       }
 
       try {
+        // Pace before the call: some providers answer 429 rather than queueing.
+        await this.rateLimiter.acquire(provider.id);
         const result = await (breaker === undefined
           ? provider.searchNews(query, context)
           : breaker.run(() => provider.searchNews(query, context)));

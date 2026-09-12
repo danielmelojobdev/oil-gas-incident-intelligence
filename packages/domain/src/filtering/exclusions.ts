@@ -12,6 +12,15 @@ export interface ExclusionDomain {
   readonly id: string;
   readonly label: string;
   readonly patterns: readonly RegExp[];
+  /**
+   * Whether an Oil & Gas anchor phrase can rescue an article from this domain.
+   *
+   * True for domains that describe real events which sometimes belong to our industry
+   * (a helicopter crash ferrying crew to a platform). False for domains that are not
+   * events at all: a market-research report about blowout preventers mentions every
+   * anchor term we have and is still not an incident. Defaults to true.
+   */
+  readonly overridable?: boolean;
 }
 
 export const EXCLUSION_DOMAINS: readonly ExclusionDomain[] = [
@@ -96,6 +105,7 @@ export const EXCLUSION_DOMAINS: readonly ExclusionDomain[] = [
     patterns: [
       /\b(pharmaceutical|drug manufacturing|vaccine)\s+(plant|factory|facility)\b/i,
       /\b(food|dairy|brewery|bakery|meat processing|sugar mill)\s+(plant|factory|processing)\b/i,
+      /\b(fish|seafood|poultry|meat)\s+(processing|processor|factory|plant)\b/i,
       /\b(industria farmaceutica|industria alimenticia)\b/i,
     ],
   },
@@ -128,11 +138,25 @@ export const EXCLUSION_DOMAINS: readonly ExclusionDomain[] = [
   {
     id: 'market-news',
     label: 'Market and corporate news (not an incident)',
+    // Not overridable: no anchor phrase turns a market report into an event.
+    overridable: false,
     patterns: [
       /\b(share price|stock (price|market)|quarterly (results|earnings)|dividend|ipo|merger|acquisition deal|analyst (rating|note)|price target)\b/i,
       /\b(oil prices? (rise|fall|climb|slip|drop|jump|surge|steady))\b/i,
       /\b(brent|wti)\s+(crude\s+)?(futures|price)/i,
       /\b(bolsa de valores|lucro trimestral|acoes da)\b/i,
+      // Vendor market-research reports rank highly for technical terms but describe
+      // no event: "Blowout Preventer Market Growth ... To Reach $45.02 Billion By 2030".
+      /\bmarket\s+(size|growth|share|report|forecast|outlook|research|analysis|trends?|valuation)\b/i,
+      /\b(cagr|compound annual growth rate)\b/i,
+      /\b(billion|million|trillion)\s+by\s+20\d\d\b/i,
+      /\bexpected to (reach|grow|expand)\b/i,
+      /\b(industry|market)\s+(report|study)\s+20\d\d\b/i,
+      // Macro and rates coverage borrows our vocabulary: "Jobs blowout meets Oil shock".
+      /\b(jobs?|sales|revenue|earnings|quarterly|salon|hair)\s+blowout\b/i,
+      /\b(bonds?|treasuries|equities|stocks?|shares?)\s+(sell|sold|rally|rout|slump)/i,
+      /\bsell[-\s]?off\b/i,
+      /\b(the fed|federal reserve|jobs report|payrolls|interest rates?)\b/i,
     ],
   },
 ];
@@ -146,7 +170,10 @@ const OIL_GAS_ANCHORS: readonly RegExp[] = [
   /\b(offshore|onshore|subsea)\s+(platform|rig|installation|oil|gas|drilling|production|well|field)/i,
   /\b(drilling rig|drillship|jack-?up|semi-?submersible|fpso|fso|wellhead|blowout preventer|christmas tree)\b/i,
   /\b(refinery|refineries|lng (plant|terminal|carrier)|gas processing plant|compressor station|oil terminal|tank farm)\b/i,
-  /\b(well (control|integrity|barrier|blowout)|blowout|loss of containment|hydrocarbon release)\b/i,
+  // NOTE: bare "blowout" is deliberately NOT an anchor. It is ambiguous in ordinary
+  // English ("salon blowout", "jobs blowout", a sporting blowout) and on its own it
+  // let a hair-care article through with a relevance score of 73.
+  /\b(well (control|integrity|barrier|blowout)|blowout preventer|(oil|gas|water)\s+well\s+blowout|loss of containment|hydrocarbon release)\b/i,
   /\b(oil|gas)\s*(pipeline|duct)|(pipeline)\s+(carrying|transporting)\s+(oil|gas|crude)/i,
   /\b(north sea|gulf of mexico|pre-?sal|permian basin|campos basin|santos basin|norwegian continental shelf)\b/i,
   /\b(petrobras|equinor|exxonmobil|chevron|totalenergies|conocophillips|aramco|adnoc|shell|bp plc|eni|pemex|pdvsa|cnooc|transocean|valaris|seadrill|halliburton|schlumberger|baker hughes)\b/i,
@@ -180,7 +207,7 @@ export function evaluateExclusions(text: string): ExclusionVerdict {
   for (const domain of EXCLUSION_DOMAINS) {
     const hit = domain.patterns.find((pattern) => pattern.test(folded));
     if (hit === undefined) continue;
-    if (hasOilGasAnchor(folded)) {
+    if (domain.overridable !== false && hasOilGasAnchor(folded)) {
       return {
         excluded: false,
         domain: domain.id,

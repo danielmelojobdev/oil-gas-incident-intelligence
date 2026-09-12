@@ -60,6 +60,10 @@ export class GdeltProvider implements NewsSourceProvider {
   readonly id = 'gdelt';
   readonly kind = 'search' as const;
   readonly defaultTier: SourceTier = 4;
+  /** GDELT documents a one-request-per-five-seconds limit and enforces it with 429s. */
+  readonly minRequestIntervalMs = 5_000;
+  /** At 5s per query, more than this would dominate the run. Highest priority wins. */
+  readonly maxQueriesPerScan = 10;
 
   constructor(private readonly http: HttpOptions) {}
 

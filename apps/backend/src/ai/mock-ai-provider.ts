@@ -18,6 +18,7 @@ import {
   type ExtractedIncident,
   type IncidentSimilarityVerdict,
   type IncidentSummaryResult,
+  type IncidentType,
   type MaterialUpdateVerdict,
   type OilGasRelevanceResult,
 } from '@ogii/domain';
@@ -124,32 +125,41 @@ export class MockAiProvider implements AIProvider {
     a: IncidentForAi,
     b: IncidentForAi,
   ): Promise<AiResult<IncidentSimilarityVerdict>> {
-    const score = scoreIncidentSimilarity(
-      {
-        title: a.title,
-        incidentDate: a.incidentDate,
-        country: a.country,
-        operator: a.operator,
-        asset: a.asset,
-        field: null,
-        incidentType: null,
-      },
-      {
-        title: b.title,
-        incidentDate: b.incidentDate,
-        country: b.country,
-        operator: b.operator,
-        asset: b.asset,
-        field: null,
-        incidentType: null,
-      },
-    );
+    const toCandidate = (incident: IncidentForAi) => ({
+      title: incident.title,
+      incidentDate: incident.incidentDate,
+      country: incident.country,
+      operator: incident.operator,
+      asset: incident.asset,
+      field: null,
+      // Pass the type through: dropping it threw away a real signal.
+      incidentType: (incident.incidentType ?? null) as IncidentType | null,
+    });
+
+    const score = scoreIncidentSimilarity(toCandidate(a), toCandidate(b));
     const headline = headlineSimilarity(a.title, b.title);
+    const sameIncident = score.decision === 'same' || (score.decision === 'review' && headline >= 0.7);
+
+    /*
+     * Confidence is how sure the verdict is, NOT the raw weighted similarity.
+     *
+     * Returning the weighted score here was a bug: sparse local reports of one event
+     * score around 0.37 because operator, asset and country are all missing, so the
+     * verdict "same incident" arrived with a confidence the caller's 0.70 gate always
+     * rejected. The result was one blowout filed as three separate incidents. When the
+     * headlines are near-identical on the same date, a reader is confident, and so is
+     * this stand-in.
+     */
+    const strength = Math.max(score.score, headline);
+    const confidence = sameIncident
+      ? Math.min(0.92, Math.max(0.72, strength))
+      : Math.min(0.9, Math.max(0.5, 1 - strength));
+
     return {
       value: incidentSimilarityVerdictSchema.parse({
-        sameIncident: score.decision === 'same' || (score.decision === 'review' && headline >= 0.7),
-        confidence: Math.min(0.9, Math.max(0.1, score.score)),
-        reason: score.reason,
+        sameIncident,
+        confidence,
+        reason: `${score.reason} Headline similarity ${headline.toFixed(2)}.`,
       }),
       usage: usage(),
     };

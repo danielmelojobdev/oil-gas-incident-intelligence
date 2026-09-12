@@ -2,8 +2,12 @@
  * The source catalogue used when the database is not available (mock/memory mode) and
  * as the seed for `news_sources`. Mirrors supabase/migrations/0003_seed_sources.sql.
  *
- * Only feeds that are publicly published for syndication are listed. Entries with a
- * null `feedUrl` are reachable through a search provider instead.
+ * Only feeds that are publicly published for syndication are listed.
+ *
+ * Every non-null `feedUrl` here has been verified to return a parseable feed. Most
+ * regulators do not publish RSS at all (their "obvious" endpoints 404 or redirect into
+ * nothing), so they carry `feedUrl: null` and are reached through a search provider
+ * using `siteFilter`. Run `npm run -w @ogii/backend health` to re-check.
  */
 import type { LanguageCode, SourceTier } from '@ogii/domain';
 
@@ -23,7 +27,7 @@ export interface SourceCatalogueEntry {
 
 export const SOURCE_CATALOGUE: readonly SourceCatalogueEntry[] = [
   // --- Tier 1: regulators and government investigation bodies ---------------
-  { slug: 'uk-hse', name: 'UK Health and Safety Executive', homepage: 'https://www.hse.gov.uk', feedUrl: 'https://www.hse.gov.uk/news/rss/news.xml', tier: 1, country: 'United Kingdom', language: 'en', isOfficial: true, isOilGasDedicated: false, siteFilter: 'hse.gov.uk' },
+  { slug: 'uk-hse', name: 'UK Health and Safety Executive', homepage: 'https://www.hse.gov.uk', feedUrl: 'https://press.hse.gov.uk/feed/', tier: 1, country: 'United Kingdom', language: 'en', isOfficial: true, isOilGasDedicated: false, siteFilter: 'hse.gov.uk' },
   { slug: 'uk-hse-offshore', name: 'UK HSE - Offshore Major Accident Regulator', homepage: 'https://www.hse.gov.uk/offshore', feedUrl: null, tier: 1, country: 'United Kingdom', language: 'en', isOfficial: true, isOilGasDedicated: true, siteFilter: 'hse.gov.uk/offshore' },
   { slug: 'uk-nsta', name: 'North Sea Transition Authority', homepage: 'https://www.nstauthority.co.uk', feedUrl: null, tier: 1, country: 'United Kingdom', language: 'en', isOfficial: true, isOilGasDedicated: true, siteFilter: 'nstauthority.co.uk' },
   { slug: 'no-havtil', name: 'Havtil (Norwegian Ocean Industry Authority)', homepage: 'https://www.havtil.no', feedUrl: null, tier: 1, country: 'Norway', language: 'no', isOfficial: true, isOilGasDedicated: true, siteFilter: 'havtil.no' },
@@ -42,13 +46,13 @@ export const SOURCE_CATALOGUE: readonly SourceCatalogueEntry[] = [
   { slug: 'ap-news', name: 'Associated Press', homepage: 'https://apnews.com', feedUrl: null, tier: 2, country: null, language: 'en', isOfficial: false, isOilGasDedicated: false, siteFilter: 'apnews.com' },
 
   // --- Tier 3: recognised Oil & Gas publications -----------------------------
-  { slug: 'offshore-energy', name: 'Offshore Energy', homepage: 'https://www.offshore-energy.biz', feedUrl: null, tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'offshore-energy.biz' },
+  { slug: 'offshore-energy', name: 'Offshore Energy', homepage: 'https://www.offshore-energy.biz', feedUrl: 'https://www.offshore-energy.biz/feed/', tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'offshore-energy.biz' },
   { slug: 'offshore-magazine', name: 'Offshore Magazine', homepage: 'https://www.offshore-mag.com', feedUrl: null, tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'offshore-mag.com' },
   { slug: 'upstream-online', name: 'Upstream', homepage: 'https://www.upstreamonline.com', feedUrl: null, tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'upstreamonline.com' },
-  { slug: 'energy-voice', name: 'Energy Voice', homepage: 'https://www.energyvoice.com', feedUrl: null, tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'energyvoice.com' },
-  { slug: 'world-oil', name: 'World Oil', homepage: 'https://www.worldoil.com', feedUrl: null, tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'worldoil.com' },
+  { slug: 'energy-voice', name: 'Energy Voice', homepage: 'https://www.energyvoice.com', feedUrl: 'https://www.energyvoice.com/feed/', tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'energyvoice.com' },
+  { slug: 'world-oil', name: 'World Oil', homepage: 'https://www.worldoil.com', feedUrl: 'https://worldoil.com/rss?feed=news', tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'worldoil.com' },
   { slug: 'ogj', name: 'Oil & Gas Journal', homepage: 'https://www.ogj.com', feedUrl: null, tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'ogj.com' },
-  { slug: 'rigzone', name: 'Rigzone', homepage: 'https://www.rigzone.com', feedUrl: null, tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'rigzone.com' },
+  { slug: 'rigzone', name: 'Rigzone', homepage: 'https://www.rigzone.com', feedUrl: 'https://www.rigzone.com/news/rss/rigzone_latest.aspx', tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'rigzone.com' },
   { slug: 'spglobal-ci', name: 'S&P Global Commodity Insights', homepage: 'https://www.spglobal.com/commodityinsights', feedUrl: null, tier: 3, country: null, language: 'en', isOfficial: false, isOilGasDedicated: true, siteFilter: 'spglobal.com' },
   { slug: 'petronoticias', name: 'Petronoticias', homepage: 'https://petronoticias.com.br', feedUrl: null, tier: 3, country: 'Brazil', language: 'pt', isOfficial: false, isOilGasDedicated: true, siteFilter: 'petronoticias.com.br' },
   { slug: 'epbr', name: 'agencia epbr', homepage: 'https://epbr.com.br', feedUrl: null, tier: 3, country: 'Brazil', language: 'pt', isOfficial: false, isOilGasDedicated: true, siteFilter: 'epbr.com.br' },

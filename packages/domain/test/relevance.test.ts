@@ -106,3 +106,62 @@ describe('Oil & Gas relevance heuristics', () => {
     expect(verdict.overriddenByAnchor).toBe(true);
   });
 });
+
+/**
+ * Regression cases captured from the first real scan against live RSS and Google News.
+ *
+ * Every headline here was actually returned by a provider. The false positives all
+ * scored highly before the fixes: substring matching ("oil" inside "soil"), bare
+ * "blowout" acting as an Oil & Gas anchor, and market-research reports having no
+ * exclusion rule at all.
+ */
+describe('real-world headlines from the first live scan', () => {
+  const accepted = (title: string, excerpt?: string): boolean =>
+    evaluateOilGasHeuristics({ title, excerpt: excerpt ?? null }).passed;
+
+  it.each([
+    ['salon blowout (hair care, not a well)', 'How to make your salon blowout last for days: Products, tips and more'],
+    ['jobs blowout (macro news)', 'Jobs blowout meets Oil shock: Bonds sell off as Fed remains between a rock and hard place'],
+    ['"oil" inside "soil"', 'Two companies and an individual sentenced after worker crushed by two tonnes of soil in trench collapse'],
+    ['vendor market report', 'Blowout Preventer Market Growth Accelerates As Industry Expected To Reach 45 Billion By 2030'],
+    ['fish processing prosecution', 'Six-figure fine for fish processing company after supervisor suffered life-threatening injuries'],
+  ])('rejects %s', (_name, title) => {
+    expect(accepted(title)).toBe(false);
+  });
+
+  it.each([
+    ['onshore well blowout', 'Kilgore Fire Department monitoring oil well blowout on CR 173 in Rusk County'],
+    ['offshore spill', 'Alaska officials respond to mystery spill near idled Cook Inlet oil platform'],
+    ['operator prosecuted for hydrocarbon leaks', 'Six-figure fine for ExxonMobil after five leaks of extremely flammable hydrocarbons at Fife chemical plant'],
+    ['platform design / hydrocarbon release', 'Shell advised to change unsuitable North Sea platform design over six years before hydrocarbon release'],
+    ['fatal well explosion', 'Lawsuit: Companies ignored safety warnings before well explosion killed two, burned survivor'],
+    ['fracking flowback release', 'DEP: An Estimated 336,000 Gallons Of Fracking Flowback Water Was Released During An Uncontrolled Shale Gas Well Release'],
+  ])('accepts %s', (_name, title) => {
+    expect(accepted(title)).toBe(true);
+  });
+
+  it('matches plural forms of glossary terms', () => {
+    // A word-boundary matcher that ignored plurals silently rejected real incidents.
+    expect(accepted('Multiple gas leaks reported at the refinery')).toBe(true);
+    expect(accepted('Hydrocarbons released from an offshore platform')).toBe(true);
+  });
+
+  it('does not match a glossary term embedded inside another word', () => {
+    const verdict = evaluateOilGasHeuristics({
+      title: 'Worker crushed by soil in a trench collapse at a building site',
+    });
+    expect(verdict.matchedIndustryTerms).not.toContain('oil');
+    expect(verdict.passed).toBe(false);
+  });
+
+  it('lets an anchor rescue an event domain but never a market report', () => {
+    // Aviation is overridable: a crash ferrying crew to a platform is in scope.
+    expect(
+      evaluateExclusions('helicopter crash while flying crew to an offshore oil platform').excluded,
+    ).toBe(false);
+    // Market news is not: anchors are exactly what a vendor report is full of.
+    expect(
+      evaluateExclusions('blowout preventer market size forecast expected to reach 45 billion by 2030').excluded,
+    ).toBe(true);
+  });
+});

@@ -27,6 +27,12 @@ export const EN_GLOSSARY: Glossary = {
     'near miss', 'mayday', 'muster', 'gas detected', 'alarm',
     'crash', 'crashed', 'ditch', 'ditched', 'ditches', 'ditching', 'struck', 'grounded',
     'shut in', 'shut-in', 'down-manning', 'downmanned', 'medevac', 'spilled', 'spilt',
+    // Past and continuous forms are listed explicitly rather than derived with a
+    // generic "-ed/-ing" suffix rule: that rule would turn "fire" into "fired" and
+    // file every executive dismissal at an oil company as a safety event.
+    'released', 'releasing', 'leaked', 'leaking', 'exploded', 'exploding',
+    'ignited', 'ignition', 'ruptured', 'rupturing', 'spilling', 'burned', 'burnt',
+    'burning', 'collapsed', 'erupted', 'evacuating', 'shutting down', 'shut down',
   ],
   strongPhrases: [
     'loss of containment', 'loss of primary containment', 'hydrocarbon release',

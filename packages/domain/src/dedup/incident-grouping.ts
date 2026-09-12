@@ -42,6 +42,16 @@ export const GROUPING_REVIEW_THRESHOLD = 0.55;
 /** Beyond this many days apart, two reports cannot be the same event. */
 export const GROUPING_MAX_DATE_GAP_DAYS = 7;
 /**
+ * Headline similarity that, on a compatible date, is enough to warrant adjudication
+ * even when no operator, asset or country could be extracted.
+ *
+ * Local reporting of an onshore incident is often sparse — "Oil well blowout secured in
+ * Rusk County" carries no company and no asset name — yet three outlets covering it
+ * produce almost the same headline. Without this the evidence-coverage penalty pushed
+ * them below the review band and the same event was filed three times.
+ */
+export const GROUPING_HEADLINE_ESCALATION = 0.75;
+/**
  * Minimum share of the total evidence weight that must be observable before the score
  * is taken at face value.
  *
@@ -166,10 +176,16 @@ export function scoreIncidentSimilarity(a: GroupingCandidate, b: GroupingCandida
   const dateSignal = signals['date'] ?? 0;
   const conclusive = assetSignal >= 0.95 && dateSignal >= 0.85;
 
+  // Sparse records with near-identical headlines go to the model rather than being
+  // silently split. This escalates to 'review', never straight to 'same': the LLM
+  // tie-break is the safety net against two genuinely different same-day events.
+  const headlineSignal = signals['headline'] ?? 0;
+  const headlineEscalates = headlineSignal >= GROUPING_HEADLINE_ESCALATION && dateSignal >= 0.85;
+
   const decision: GroupingDecision =
     conclusive || score >= GROUPING_MATCH_THRESHOLD
       ? 'same'
-      : score >= GROUPING_REVIEW_THRESHOLD
+      : score >= GROUPING_REVIEW_THRESHOLD || headlineEscalates
         ? 'review'
         : 'different';
 

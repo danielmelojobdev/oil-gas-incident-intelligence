@@ -154,6 +154,10 @@ const COUNTRIES: readonly { name: string; code: string; specific: RegExp; region
   { name: 'China', code: 'CN', specific: /\b(china|chinese|cnooc|sinopec)\b/ },
 ];
 
+/** Place names and newsroom names: never an operator, never an asset. */
+const ORG_STOP_WORDS =
+  /\b(County|Parish|Borough|City|State|Province|Department|District|Forest|Beacon|Herald|Times|Post|News|Wire|Journal|Gazette|Tribune|Review|Daily|Press)\b/i;
+
 /**
  * Named assets: an installation name sitting next to an asset noun.
  *
@@ -172,7 +176,7 @@ const NOT_AN_ASSET =
 const ORGANISATION_MARKER =
   /\b(Energy|Energi|Energia|Petroleum|Petroleo|Refining|Midstream|Upstream|Resources|Inc|Ltd|Limited|LLC|plc|Corporation|Company|Services)\b/;
 
-function extractAssetName(rawText: string): string | null {
+function extractAssetName(rawText: string, publisher?: string | null): string | null {
   // "... the jack-up drilling rig Nordvind II ..." (noun, then name)
   const after = new RegExp(String.raw`\b(?:${ASSET_NOUNS})\s+(?:named\s+)?(${ASSET_NAME})`).exec(rawText);
   // "... the Nordvind II jack-up rig ..." (name, then up to two qualifiers, then noun)
@@ -180,11 +184,25 @@ function extractAssetName(rawText: string): string | null {
     String.raw`\b(${ASSET_NAME})\s+(?:[a-z][a-z-]*\s+){0,2}(?:${ASSET_NOUNS})\b`,
   ).exec(rawText);
 
+  const normalisedPublisher = (publisher ?? '')
+    .toLowerCase()
+    .replace(/\s*\(fictional\)\s*/i, '')
+    .trim();
+
   const candidates = [after?.[1], before?.[1]]
     .map((value) => value?.trim())
     .filter((value): value is string => value !== undefined && value.length >= 3)
     .filter((value) => !NOT_AN_ASSET.test(value))
-    .filter((value) => !ORGANISATION_MARKER.test(value));
+    .filter((value) => !ORGANISATION_MARKER.test(value))
+    // A newsroom or a county is not an asset. "Alaska Beacon ... platform" was being
+    // filed as the installation involved in the incident it reported on.
+    .filter((value) => !ORG_STOP_WORDS.test(value))
+    .filter(
+      (value) =>
+        normalisedPublisher === '' ||
+        (!normalisedPublisher.includes(value.toLowerCase()) &&
+          !value.toLowerCase().includes(normalisedPublisher)),
+    );
 
   // Prefer the longer, more specific name.
   return candidates.sort((a, b) => b.length - a.length)[0] ?? null;
@@ -254,17 +272,33 @@ function extractCasualties(text: string): {
 }
 
 /**
- * Organisation names: capitalised multi-word sequences ending in a corporate marker.
- * Conservative by design — a wrong operator is worse than no operator.
+ * Organisation names: capitalised sequences ending in a corporate marker.
+ *
+ * Conservative by design - a wrong operator is worse than no operator. Three guards
+ * were added after the first live scan produced "Rusk County. Oil" (the match spanned
+ * a sentence boundary) and "Alaska Beacon" (the publisher's own name appearing in the
+ * text it published).
  */
-function extractOrganisation(rawText: string): string | null {
+function extractOrganisation(rawText: string, publisher?: string | null): string | null {
+  // [^.]* in the tail: a company name never spans a full stop.
   const pattern =
-    /\b([A-Z][\w&.-]*(?:\s+[A-Z][\w&.-]*){0,3}\s+(?:Energy|Energi|Energia|Petroleum|Petroleo|Oil|Gas|Refining|Midstream|Upstream|Drilling|Resources|Offshore|LNG|Services|Petrobras|Corporation|Inc|Ltd|Limited|LLC|plc|AS|ASA|S\.A\.|SA|Pty|Pte|Company|Co))\b/;
+    /\b([A-Z][\w&-]*(?:\s+[A-Z][\w&-]*){0,3}\s+(?:Energy|Energi|Energia|Petroleum|Petroleo|Oil|Gas|Refining|Midstream|Upstream|Drilling|Resources|Offshore|LNG|Services|Petrobras|Corporation|Inc|Ltd|Limited|LLC|plc|AS|ASA|S\.A\.|SA|Pty|Pte|Company|Co))\b/;
   const match = pattern.exec(rawText);
   const name = match?.[1]?.trim();
   if (name === undefined || name.length < 4) return null;
-  // Reject sentence-initial false positives such as "The Oil".
-  if (/^(the|a|an|this|that|its)\b/i.test(name)) return null;
+
+  // Sentence-initial false positives such as "The Oil".
+  if (/^(the|a|an|this|that|its|and|but)\b/i.test(name)) return null;
+  // Place names and newsroom names are not operators.
+  if (ORG_STOP_WORDS.test(name)) return null;
+  // The publisher writing the article is not the company involved in it.
+  if (publisher != null && publisher.trim() !== '') {
+    const normalisedPublisher = publisher.toLowerCase().replace(/\s*\(fictional\)\s*/i, '').trim();
+    const normalisedName = name.toLowerCase();
+    if (normalisedPublisher.includes(normalisedName) || normalisedName.includes(normalisedPublisher)) {
+      return null;
+    }
+  }
   return name;
 }
 
@@ -352,15 +386,15 @@ export function extractIncidentHeuristically(articles: readonly ArticleForAi[]):
     latitude: null,
     longitude: null,
 
-    operator: extractOrganisation(rawText),
+    operator: extractOrganisation(rawText, primary.publisher),
     company: null,
     licenceHolder: null,
     drillingContractor: null,
     serviceCompany: null,
     pipelineOperator: null,
 
-    asset: extractAssetName(rawText),
-    installation: extractAssetName(rawText),
+    asset: extractAssetName(rawText, primary.publisher),
+    installation: extractAssetName(rawText, primary.publisher),
     installationType: firstMatch(text, INSTALLATION_RULES),
     vessel: null,
 

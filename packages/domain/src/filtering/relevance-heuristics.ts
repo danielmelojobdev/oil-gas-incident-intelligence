@@ -56,12 +56,40 @@ const DOWNSTREAM_HINTS = [
   'fuel storage', 'fuel depot', 'refinaria', 'petroquimica', 'refineria', 'raffineri', 'raffinerie',
 ];
 
-/** Counts and returns which of `terms` appear as whole words / phrases in `text`. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, (match) => `\\${match}`);
+}
+
+/**
+ * Compiled whole-word matchers, built once per term list.
+ *
+ * A plain `includes()` is wrong here and was actively harmful: "oil" matched inside
+ * "soil", so an HSE notice about a worker crushed in a trench collapse scored as an
+ * Oil & Gas incident. Glossary terms are already case-folded and de-accented, so an
+ * ASCII \b boundary is sufficient and is safe in Hermes as well as Node.
+ */
+const matcherCache = new WeakMap<readonly string[], { term: string; pattern: RegExp }[]>();
+
+function matchersFor(terms: readonly string[]): { term: string; pattern: RegExp }[] {
+  const cached = matcherCache.get(terms);
+  if (cached !== undefined) return cached;
+  const compiled = terms.map((term) => ({
+    term,
+    // Glossary terms are singular; article text is not. Allowing an optional
+    // plural suffix keeps "leaks" matching "leak" without reintroducing the
+    // substring bug that made "soil" match "oil".
+    pattern: new RegExp(`\\b${escapeRegExp(term)}(?:e?s)?\\b`),
+  }));
+  matcherCache.set(terms, compiled);
+  return compiled;
+}
+
+/** Returns which of `terms` appear as whole words or phrases in `text`. */
 function matchTerms(text: string, terms: readonly string[], limit = 8): string[] {
   const found: string[] = [];
-  for (const term of terms) {
+  for (const { term, pattern } of matchersFor(terms)) {
     if (found.length >= limit) break;
-    if (text.includes(term)) found.push(term);
+    if (pattern.test(text)) found.push(term);
   }
   return found;
 }

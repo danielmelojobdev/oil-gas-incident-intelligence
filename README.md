@@ -171,8 +171,22 @@ npm run backend:dev
 | Script | What it does |
 |---|---|
 | `npm run backend:dev` | Fastify + scheduler with hot reload |
-| `npm run backend:scan` | Runs one scan to completion and prints the summary |
+| `npm run backend:scan` | Runs one scan to completion, prints the summary **and the incidents it produced** |
+| `npm run -w @ogii/backend health` | Checks every configured provider and reports which feeds are reachable |
+| `npm run -w @ogii/backend explain -- "<headline>"` | Explains why the Oil & Gas filter accepted or rejected a headline |
 | `npm run backend:build` | Bundles to `apps/backend/dist/index.js` |
+
+The `explain` tool exists because the relevance decision *is* the product. When it gets
+something wrong, this shows which rule was responsible instead of leaving you guessing:
+
+```
+$ npm run -w @ogii/backend explain -- "How to make your salon blowout last for days"
+
+  verdict                REJECTED
+  event signal           true      matched: blowout
+  industry signal        false     matched: (none)
+  reason: Event terminology present but no clear Oil & Gas relation.
+```
 
 ### API
 
@@ -252,6 +266,16 @@ A realistic no-key production setup:
 ```bash
 NEWS_PROVIDERS=rss,google-news-rss,gdelt
 ```
+
+**Pacing.** Providers declare `minRequestIntervalMs` and `maxQueriesPerScan`, and the
+scanner honours both. GDELT documents a one-request-per-five-seconds limit and answers
+429 otherwise, so it is paced at 5s and given only the ten highest-priority queries.
+
+**Feed URLs rot.** Publishers move their RSS paths without notice, and most regulators
+publish no RSS at all — their "obvious" endpoints 404 or redirect into nothing. Those
+sources carry `feedUrl: null` and are reached through a search provider with a site
+filter instead. Every non-null feed URL in the catalogue has been verified to return a
+parseable feed; re-check them with `npm run -w @ogii/backend health`.
 
 Source tiers (which drive the confidence score) are in
 [`apps/backend/src/news/feeds.ts`](apps/backend/src/news/feeds.ts) and mirrored in
@@ -336,7 +360,7 @@ open /tmp/report.html
 ## 15. Testing
 
 ```bash
-npm test           # 198 tests
+npm test           # 216 tests
 npm run typecheck  # tsc --build, strict, no `any`
 npm run lint       # eslint, `no-explicit-any` is an error
 npm run verify     # all three
@@ -344,7 +368,7 @@ npm run verify     # all three
 
 | Suite | Covers |
 |---|---|
-| `packages/domain/test/relevance` | Oil & Gas classification, the false-positive exclusion list, 5 languages |
+| `packages/domain/test/relevance` | Oil & Gas classification, the exclusion list, 5 languages, **and real headlines captured from a live scan** |
 | `packages/domain/test/url-dedup` | URL normalisation, hashing, five deduplication signals |
 | `packages/domain/test/grouping` | Incident grouping, country/date vetoes, the LLM review band |
 | `packages/domain/test/scoring` | Severity, confidence, relevance, thresholds |
@@ -356,6 +380,7 @@ npm run verify     # all three
 | `apps/backend/test/providers` | Feed parsing, source tiers, provider normalisation |
 | `apps/backend/test/api` | Every HTTP endpoint, auth, scan cooldown, validation, GDPR |
 | `apps/backend/test/extraction` | Rules-only extraction: country precedence, assets, casualty counts |
+| `apps/backend/test/rate-limiter` | Per-provider pacing under concurrency |
 | `apps/mobile/test/*` | PDF HTML rendering and escaping, deep links, formatting, filter store |
 
 ## 16. Mock Mode
@@ -437,7 +462,7 @@ caching and usage accounting are inherited.
 
 ## 22. Project status
 
-**MVP complete and runnable.** 198 automated tests, strict TypeScript with `no-explicit-any`
+**MVP complete and runnable.** 216 automated tests, strict TypeScript with `no-explicit-any`
 enforced, clean lint.
 
 Prepared for, but deliberately not built yet: the world incident map (the schema already carries

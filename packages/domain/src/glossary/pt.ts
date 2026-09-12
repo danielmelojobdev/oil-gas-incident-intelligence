@@ -26,7 +26,7 @@ export const PT_GLOSSARY: Glossary = {
     'acidente plataforma petróleo', 'incêndio plataforma', 'explosão plataforma',
     'vazamento de gás', 'vazamento de petróleo', 'acidente em poço', 'controle de poço',
     'falha de integridade de poço', 'falha de barreira', 'perda de contenção',
-    'perda de controle de poço', 'blowout', 'falha bop', 'falha do bop',
+    'perda de controle de poço', 'blowout de poço', 'falha bop', 'falha do bop',
     'incêndio refinaria', 'explosão refinaria', 'rompimento gasoduto',
     'rompimento oleoduto', 'vazamento gasoduto', 'vazamento oleoduto',
     'liberação de hidrocarbonetos', 'parada de emergência', 'parada de produção',
