@@ -25,7 +25,8 @@
     "mobile:start": "npm run -w @ogii/mobile start",
     "mobile:ios": "npm run -w @ogii/mobile ios",
     "mobile:android": "npm run -w @ogii/mobile android",
-    "verify": "npm run typecheck && npm run typecheck:mobile && npm run lint && npm run test"
+    "verify": "npm run typecheck && npm run typecheck:mobile && npm run lint && npm run test",
+    "setup:local": "bash scripts/setup-local.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

@@ -96,12 +96,23 @@ Every external dependency sits behind a port with a working Mock implementation:
 ## 4. Installation
 
 ```bash
-git clone <your-repo-url>
-cd "oil-gas-incident-intelligence"
+git clone https://github.com/danielmelojobdev/oil-gas-incident-intelligence.git
+cd oil-gas-incident-intelligence
 npm install
 ```
 
 This installs all three workspaces. No further setup is needed to run in Mock Mode.
+
+### Optional: one-command local setup with a real database
+
+```bash
+npm run setup:local
+```
+
+Installs PostgreSQL if needed, creates the database, applies all three migrations
+(stubbing `auth.uid()` so the RLS migration can be validated off Supabase too), writes
+both `.env` files and runs a first scan against live news sources. Safe to re-run; it
+never overwrites an existing `.env`.
 
 ## 5. Running it (Mock Mode in 60 seconds)
 
@@ -227,11 +238,25 @@ psql "$DATABASE_URL" -f supabase/migrations/0002_rls.sql   # Supabase only (uses
 psql "$DATABASE_URL" -f supabase/migrations/0003_seed_sources.sql
 ```
 
+Or just `npm run setup:local`, which does all of it.
+
+**The schema and the adapter have been run against a real PostgreSQL 17 server**: 21
+tables, 64 indexes, 20 RLS policies, 25 seeded sources. A suite of 12 integration tests
+covers the adapter and is skipped automatically unless `DATABASE_URL` is set:
+
+```bash
+DATABASE_URL=postgresql://localhost:5432/ogii npm test
+```
+
 With the Supabase CLI: `supabase link --project-ref <ref> && supabase db push`.
 
 See [`supabase/README.md`](supabase/README.md) for the auth linkage and the schema notes.
 
 ## 9. Environment variables
+
+The backend reads `.env` from the repository root at startup. Values already present in
+the real environment always win, so `APP_MODE=mock npm run backend:scan` still overrides
+the file. The path that was loaded is logged on boot as `configuration loaded`.
 
 Full annotated list in [`.env.example`](.env.example). The ones that matter most:
 
@@ -360,7 +385,7 @@ open /tmp/report.html
 ## 15. Testing
 
 ```bash
-npm test           # 216 tests
+npm test           # 216 tests, +12 more when DATABASE_URL is set
 npm run typecheck  # tsc --build, strict, no `any`
 npm run lint       # eslint, `no-explicit-any` is an error
 npm run verify     # all three
@@ -381,6 +406,7 @@ npm run verify     # all three
 | `apps/backend/test/api` | Every HTTP endpoint, auth, scan cooldown, validation, GDPR |
 | `apps/backend/test/extraction` | Rules-only extraction: country precedence, assets, casualty counts |
 | `apps/backend/test/rate-limiter` | Per-provider pacing under concurrency |
+| `apps/backend/test/postgres.integration` | The real Postgres adapter (skipped without `DATABASE_URL`) |
 | `apps/mobile/test/*` | PDF HTML rendering and escaping, deep links, formatting, filter store |
 
 ## 16. Mock Mode
@@ -464,6 +490,12 @@ caching and usage accounting are inherited.
 
 **MVP complete and runnable.** 216 automated tests, strict TypeScript with `no-explicit-any`
 enforced, clean lint.
+
+Verified against real infrastructure: live RSS/Google News/GDELT sources, and a real
+PostgreSQL 17 server. **Not yet verified: any real AI provider** (no key was ever
+configured, so the adapters have never made a call) and **push delivery to a physical
+device**. There is also **no sign-in flow** — the app identifies itself with an
+anonymous device id, which is enough for one user but not for a team.
 
 Prepared for, but deliberately not built yet: the world incident map (the schema already carries
 `latitude`/`longitude`/`basin`/`block`), heat maps, trend analytics, operator/asset/well

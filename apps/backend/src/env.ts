@@ -6,6 +6,7 @@
  */
 import { z } from 'zod';
 import { SCAN_FREQUENCIES, SEARCH_PERIODS, LANGUAGES } from '@ogii/domain';
+import { loadEnvFile } from './load-env-file';
 
 const booleanish = z
   .union([z.boolean(), z.string()])
@@ -83,7 +84,14 @@ export type Env = z.infer<typeof envSchema>;
 
 let cached: Env | null = null;
 
+/** Path of the `.env` that was loaded, for the startup log. */
+export let loadedEnvFile: string | null = null;
+
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
+  // Populate process.env from `.env` before validating, unless a caller passed its own
+  // source (the tests do, and they must stay hermetic).
+  if (source === process.env) loadedEnvFile = loadEnvFile();
+
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`).join('\n');

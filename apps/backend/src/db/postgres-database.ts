@@ -462,7 +462,8 @@ export class PostgresDatabase implements Database {
         status, is_mock, first_scan_run_id
       ) values (
         ${input.title}, ${input.summary}, ${input.incidentDate}, ${input.incidentTime}, ${input.incidentDateIsEstimated},
-        ${input.detectedAt ?? null}::timestamptz, ${input.lastUpdatedAt ?? null}::timestamptz,
+        coalesce(${input.detectedAt ?? null}::timestamptz, now()),
+        coalesce(${input.lastUpdatedAt ?? null}::timestamptz, now()),
         ${input.country}, ${input.countryCode}, ${input.region}, ${input.city}, ${input.basin}, ${input.block},
         ${input.field}, ${input.latitude}, ${input.longitude},
         ${input.operator}, ${input.operator === null ? null : input.operator.toLowerCase()}, ${input.company},

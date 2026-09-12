@@ -6,7 +6,7 @@ import { createAiProvider } from './ai/registry';
 import type { AIProvider } from './ai/ai-provider';
 import { createDatabase } from './db';
 import type { Database } from './db/database';
-import { loadEnv, type Env } from './env';
+import { loadEnv, loadedEnvFile, type Env } from './env';
 import { createLogger, type Logger } from './logger';
 import { createNewsProviders } from './news/registry';
 import type { NewsSourceProvider } from './news/news-source-provider';
@@ -48,6 +48,8 @@ export async function createContainer(options: ContainerOptions = {}): Promise<C
     userAgent: env.HTTP_USER_AGENT,
     logger,
   };
+
+  if (loadedEnvFile !== null) logger.info('configuration loaded', { envFile: loadedEnvFile });
 
   const db = createDatabase(env, logger, now);
   await db.init();
