@@ -229,3 +229,32 @@ of firing together. A heavily paced provider receives only the highest-priority 
 
 **Consequences.** Well-behaved clients of free public APIs, and a scan whose wall-clock
 time is not dominated by the slowest-paced source.
+
+---
+
+## D19 — Every identity is folded into a UUID at the HTTP boundary
+
+**Context.** The app is designed to work before anyone signs in, identifying itself with
+an anonymous device id such as `device:ab12cd34`. Supabase Auth, when configured,
+supplies a real UUID. All seven user-owned tables type `user_id` as `uuid`.
+
+`MemoryDatabase` used the identity as a plain map key, so the raw string worked
+perfectly — and every authenticated read against Postgres returned **HTTP 500**
+(`invalid input syntax for type uuid`). Since the app sends the device header on every
+request, the entire feed was broken the moment a real database was connected, while
+every unit test still passed.
+
+**Decision.** `toUserUuid()` runs in `resolveAuth`, so nothing downstream ever sees a
+non-UUID identity. A value that is already a UUID passes through; anything else is
+folded deterministically into an RFC-4122-shaped v5 UUID. `PostgresDatabase`
+provisions the `users` row on first write, because an anonymous device is a real user
+as far as the foreign keys are concerned.
+
+**Consequences.** Anonymous use works against a real database, sign-in later reuses the
+same code path, and the failure mode that produced a white screen with a retry button
+is covered by an integration test.
+
+**Lesson.** Two of the three defects found on first contact with Postgres
+(`detected_at`, and this) existed because the in-memory adapter is *more* permissive
+than the real one. A mock that is easier to satisfy than production hides exactly the
+bugs it is meant to catch.

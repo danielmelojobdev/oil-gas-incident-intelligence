@@ -730,7 +730,19 @@ export class PostgresDatabase implements Database {
 
   // ------------------------------------------------------------------ users
 
+  /**
+   * Creates the user row on demand.
+   *
+   * Every user-owned table has a foreign key to `users`, and the app is designed to
+   * work before anyone signs in. An anonymous device is a real user as far as this
+   * schema is concerned, so its row is provisioned the first time it writes anything.
+   */
+  private async ensureUser(userId: string): Promise<void> {
+    await this.sql`insert into public.users (id) values (${userId}) on conflict (id) do nothing`;
+  }
+
   async setUserIncidentState(userId: string, incidentId: string, state: UserIncidentState): Promise<void> {
+    await this.ensureUser(userId);
     await this.sql`
       insert into public.user_incident_state (user_id, incident_id, state, read_at)
       values (${userId}, ${incidentId}, ${state}, case when ${state} = 'read' then now() else null end)
@@ -774,6 +786,7 @@ export class PostgresDatabase implements Database {
   async saveUserPreferences(userId: string, preferences: UserPreferences): Promise<UserPreferences> {
     const parsed = userPreferencesSchema.parse(preferences);
     const n = parsed.notifications;
+    await this.ensureUser(userId);
     await this.sql`
       insert into public.user_preferences (
         user_id, theme, default_period, default_date_axis, regions, custom_countries, languages,
@@ -805,6 +818,7 @@ export class PostgresDatabase implements Database {
   }
 
   async registerDevice(input: DeviceInput): Promise<void> {
+    if (input.userId !== null) await this.ensureUser(input.userId);
     await this.sql`
       insert into public.devices (user_id, expo_push_token, platform, app_version, last_seen_at)
       values (${input.userId}, ${input.expoPushToken}, ${input.platform}, ${input.appVersion}, now())
@@ -832,6 +846,7 @@ export class PostgresDatabase implements Database {
     status: 'sent' | 'failed' | 'suppressed',
     error: string | null,
   ): Promise<void> {
+    if (input.userId !== null) await this.ensureUser(input.userId);
     await this.sql`
       insert into public.notifications
         (user_id, incident_id, material_update_id, kind, title, body, update_fingerprint, sent_at, delivery_status, error_message)
@@ -847,6 +862,7 @@ export class PostgresDatabase implements Database {
     format: 'pdf' | 'json' | 'csv',
     fileName: string | null,
   ): Promise<void> {
+    if (userId !== null) await this.ensureUser(userId);
     await this.sql`
       insert into public.export_history (user_id, incident_id, format, file_name)
       values (${userId}, ${incidentId}, ${format}, ${fileName})`;

@@ -6,6 +6,7 @@ import { buildServer } from '../src/http/server';
 import { ScanQueue } from '../src/scanner/scan-queue';
 import { ScanScheduler } from '../src/scheduler/cron';
 import { silentLogger } from '../src/logger';
+import { toUserUuid } from '../src/http/user-id';
 
 const TEST_NOW = new Date('2026-09-12T12:00:00.000Z');
 const ADMIN_TOKEN = 'test-admin-token';
@@ -284,7 +285,10 @@ describe('HTTP API', () => {
     await app.inject({ method: 'PUT', url: '/v1/preferences', headers, payload: { theme: 'light' } });
 
     const exported = (await app.inject({ method: 'GET', url: '/v1/me/export', headers })).json();
-    expect(exported.userId).toBe('device:device-gdpr1234');
+    // The identity is folded into a UUID at the HTTP boundary, because every user_id
+    // column in the schema is typed `uuid`. It must be stable for the same device.
+    expect(exported.userId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(exported.userId).toBe(toUserUuid('device:device-gdpr1234'));
     expect(exported.data).toHaveProperty('preferences');
 
     const deleted = await app.inject({ method: 'DELETE', url: '/v1/me', headers });

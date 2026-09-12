@@ -8,6 +8,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { Env } from '../env';
 import { ForbiddenError, UnauthorizedError } from '../util/errors';
+import { toUserUuid } from './user-id';
 
 export interface AuthContext {
   readonly userId: string | null;
@@ -49,7 +50,7 @@ export function resolveAuth(request: FastifyRequest, env: Env): AuthContext {
     const exp = payload?.['exp'];
     if (typeof exp === 'number' && exp * 1000 < Date.now()) throw new UnauthorizedError('Token has expired');
     if (typeof sub === 'string' && sub.length > 0) {
-      return { userId: sub, isAdmin, anonymous: false };
+      return { userId: toUserUuid(sub), isAdmin, anonymous: false };
     }
   }
 
@@ -59,7 +60,8 @@ export function resolveAuth(request: FastifyRequest, env: Env): AuthContext {
     if (env.NODE_ENV === 'production' && env.SUPABASE_URL !== null) {
       throw new UnauthorizedError('Anonymous device access is disabled in production');
     }
-    return { userId: `device:${deviceId}`, isAdmin, anonymous: true };
+    // Folded into a UUID: every user_id column in the schema is typed `uuid`.
+    return { userId: toUserUuid(`device:${deviceId}`), isAdmin, anonymous: true };
   }
 
   return { userId: null, isAdmin, anonymous: true };

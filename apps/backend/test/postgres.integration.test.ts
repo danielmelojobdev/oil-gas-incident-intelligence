@@ -274,6 +274,42 @@ suite('PostgresDatabase (integration)', () => {
     await db.recordNotification(input, 'sent', null);
   });
 
+  it('accepts an anonymous device identity folded into a UUID', async () => {
+    // Regression: the app always sends an anonymous device id, and every user_id
+    // column is typed `uuid`. The raw string produced
+    // 'invalid input syntax for type uuid' and returned 500 on every feed request.
+    const { toUserUuid } = await import('../src/http/user-id');
+    const userId = toUserUuid('device:integration-test-device');
+
+    const incident = await db.createIncident(minimalIncident('Integration: device state'), null);
+
+    // Writing must provision the user row rather than violating the foreign key.
+    await db.setUserIncidentState(userId, incident.id, 'saved');
+
+    const read = await db.getIncident(incident.id, userId);
+    expect(read?.userState).toBe('saved');
+
+    const saved = await db.listIncidents(
+      incidentFiltersSchema.parse({ period: 'all_time', states: ['saved'], limit: 50 }),
+      userId,
+      NOW,
+    );
+    expect(saved.items.map((item) => item.id)).toContain(incident.id);
+
+    // Preferences and devices sit behind the same foreign key.
+    const preferences = await db.getUserPreferences(userId);
+    await db.saveUserPreferences(userId, { ...preferences, theme: 'dark' });
+    expect((await db.getUserPreferences(userId)).theme).toBe('dark');
+
+    await db.registerDevice({
+      userId,
+      expoPushToken: `ExponentPushToken[integration-${Date.now()}]`,
+      platform: 'ios',
+      appVersion: '0.1.0',
+    });
+    expect((await db.listActiveDevices()).some((device) => device.userId === userId)).toBe(true);
+  });
+
   it('lists the seeded source catalogue with tiers', async () => {
     const sources = await db.listSources();
     expect(sources.length).toBeGreaterThan(20);

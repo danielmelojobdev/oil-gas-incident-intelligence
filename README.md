@@ -385,7 +385,7 @@ open /tmp/report.html
 ## 15. Testing
 
 ```bash
-npm test           # 216 tests, +12 more when DATABASE_URL is set
+npm test           # 221 tests, +13 more when DATABASE_URL is set
 npm run typecheck  # tsc --build, strict, no `any`
 npm run lint       # eslint, `no-explicit-any` is an error
 npm run verify     # all three
@@ -456,8 +456,10 @@ in `apps/mobile/app.json`.
 * **No secret ever reaches the device.** Service-role key, AI keys and news API keys exist only in
   the backend process. The app holds at most the Supabase *anon* key, which is designed to be
   public and is guarded by RLS.
-* Supabase Auth issues the JWT; the backend derives `user_id` from it. Privileged endpoints
-  additionally require `ADMIN_API_TOKEN`.
+* Supabase Auth issues the JWT; the backend derives `user_id` from it. Before sign-in the app
+  identifies itself with an anonymous device id. Both are folded into a stable UUID at the HTTP
+  boundary, because every `user_id` column is typed `uuid`, and the user row is provisioned on
+  first write. Privileged endpoints additionally require `ADMIN_API_TOKEN`.
 * Zod validates every HTTP request, every provider response and every AI response.
 * URLs are allow-listed to `http(s)` with no embedded credentials — `javascript:` and `data:` can
   never be opened. Deep links are parsed, never evaluated.
@@ -488,7 +490,7 @@ caching and usage accounting are inherited.
 
 ## 22. Project status
 
-**MVP complete and runnable.** 216 automated tests, strict TypeScript with `no-explicit-any`
+**MVP complete and runnable.** 234 automated tests, strict TypeScript with `no-explicit-any`
 enforced, clean lint.
 
 Verified against real infrastructure: live RSS/Google News/GDELT sources, and a real
