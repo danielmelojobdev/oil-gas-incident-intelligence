@@ -1,0 +1,18 @@
+{
+  "name": "@ogii/domain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pure, I/O-free domain core for Oil & Gas Incident Intelligence: taxonomy, schemas, glossary, query generation, relevance heuristics, deduplication, grouping and scoring.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  }
+}

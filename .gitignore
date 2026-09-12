@@ -1,0 +1,27 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# env / secrets — never commit
+.env
+.env.*
+!.env.example
+
+# expo / rn
+.expo/
+.expo-shared/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+apps/mobile/ios/
+apps/mobile/android/
+
+# os / editors
+.DS_Store
+*.log
+.idea/
+.vscode/

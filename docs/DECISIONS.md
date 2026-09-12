@@ -1,0 +1,163 @@
+# Decision log
+
+Format: context → decision → consequences. Decisions are numbered and referenced from
+`ARCHITECTURE.md`.
+
+---
+
+## D1 — Scanner runs on a Node.js service, not Supabase Edge Functions
+
+**Context.** The brief prefers Supabase Edge Functions and allows a separate Node.js backend *if the
+reason is documented*.
+
+**Decision.** Supabase remains the database (and, when configured, auth + storage). The scanner and
+the read API run as a single Node.js/Fastify service.
+
+**Reasons.**
+1. **Wall-clock.** A full scan issues 20–40 provider queries and up to `SCAN_MAX_AI_EXTRACTIONS`
+   model calls. Edge Functions are designed for short request/response work; a scan is a batch job
+   that legitimately runs for minutes.
+2. **Code sharing.** Mobile, backend and the test suite all import `@ogii/domain`. With a Deno edge
+   runtime the same logic would have to be duplicated or published separately — and the
+   classification logic is the product, so duplicating it is the single most expensive mistake
+   available.
+3. **Operational control.** Retries with exponential backoff, per-provider circuit breakers, a
+   concurrency limiter and an in-process response cache are natural in a long-lived process and
+   awkward in a per-invocation one.
+4. **Local development.** The whole system runs with `npm run backend:dev` — no Deno toolchain, no
+   Supabase CLI, no Docker required. (Neither was available on the development machine.)
+
+**Consequences.** One more deployable unit (any container host: Fly.io, Railway, Render, ECS…).
+Teams that want a single host can keep the Node service private and put a ~30-line Supabase Edge
+Function in front of `POST /v1/scans` — documented in `docs/EDGE_FUNCTION_PROXY.md`.
+
+---
+
+## D2 — `packages/domain` is pure and I/O-free
+
+**Decision.** No `fetch`, no `fs`, no `process.env`, no date-of-now reads without an injected clock
+inside the domain package.
+
+**Consequences.** Every rule is unit-testable in milliseconds; the same code runs in Hermes
+(React Native) and Node. Anything needing I/O lives in an adapter.
+
+---
+
+## D3 — Ports and adapters for every external dependency
+
+**Decision.** `NewsSourceProvider`, `AIProvider`, `Database`, `PushProvider`. Each has a Mock
+implementation that is a real implementation of the port, not a stub.
+
+**Consequences.** `APP_MODE=mock` runs the true pipeline end to end with zero keys and zero spend,
+which is also how the integration tests run in CI.
+
+---
+
+## D4 — Incident ≠ Article
+
+**Decision.** Two aggregates joined by `incident_articles`. The feed lists incidents. Articles are
+evidence attached to an incident and are never shown as separate feed entries.
+
+**Consequences.** Grouping becomes an explicit, testable pipeline stage with its own metrics, and
+"4 sources" on a card is a real count, not a rendering trick.
+
+---
+
+## D5 — Rules first, model second
+
+**Decision.** Severity, confidence, relevance and material-update each have a deterministic rule
+score. The model contributes a second opinion that is blended, bounded and logged.
+
+**Consequences.** Reproducible behaviour, testable thresholds, and graceful degradation when the AI
+provider is unavailable (the pipeline continues in rules-only mode and marks affected incidents with
+lower confidence).
+
+---
+
+## D6 — Zod at every trust boundary
+
+**Decision.** HTTP input, provider output, AI output and database rows are all parsed with Zod.
+`unknown` is never cast with `as`.
+
+**Consequences.** A malformed model response produces a logged, retried, and finally skipped
+candidate — never a corrupt incident.
+
+---
+
+## D7 — Metadata-only ingestion
+
+**Decision.** Store title, excerpt (as published in the feed), publisher, author, language, dates,
+URLs, plus our own generated summary. Never store article bodies; never bypass paywalls; honour
+`robots.txt`; use official feeds and APIs only.
+
+**Consequences.** Copyright-safe. The "Open Original Source" button is mandatory in the UI and the
+publisher is never hidden.
+
+---
+
+## D8 — `incident_date` is the primary time axis
+
+**Decision.** Feed windows filter on `incident_date`. When the incident date cannot be established,
+the article's `published_at` is used as a clearly-flagged proxy (`incident_date_is_estimated`).
+
+**Consequences.** Retrospective coverage of an old disaster does not pollute "last 30 days". A
+future setting switches the axis to publication date without a schema change.
+
+---
+
+## D9 — 8-stage cost ladder
+
+See `ARCHITECTURE.md` §5. Consequence: the expensive extraction model typically sees under 10% of
+raw provider results.
+
+---
+
+## D10 — Mock Mode is a runtime, not fixtures
+
+**Decision.** `MockNewsProvider` returns synthetic articles about **fictional companies**;
+`MockAIProvider` implements the same contract deterministically; the app shows a persistent
+`MOCK DATA` banner.
+
+**Consequences.** Acceptance criterion 33 ("run completely in Mock Mode") is satisfied without a
+single credential, and demos can never be mistaken for real events.
+
+---
+
+## D11 — Enum-like columns are `text` + `CHECK`, not Postgres `ENUM`
+
+**Decision.** Taxonomies change (a new well-integrity category, a new installation type). `ALTER
+TYPE ... ADD VALUE` cannot run inside a transaction and cannot remove values.
+
+**Consequences.** Migrations stay boring; the canonical list lives in `packages/domain/taxonomy.ts`
+and is mirrored by a `CHECK` constraint.
+
+---
+
+## D12 — Hashing uses a pure-TS 128-bit FNV-1a, not `node:crypto`
+
+**Context.** The same hashing must run in React Native (Hermes, no `node:crypto`, no
+`crypto.subtle` synchronously) and in Node, and must be deterministic across both.
+
+**Decision.** A pure-TS FNV-1a based 128-bit hash for `title_hash` / `content_hash` /
+`update_fingerprint`.
+
+**Consequences.** These are *dedup* keys, not security primitives; collision probability at our
+volume is negligible. Nothing security-relevant depends on them, and this is asserted in tests.
+
+---
+
+## D13 — Client state vs server state
+
+**Decision.** TanStack Query owns everything that came from the server. Zustand owns only
+client-owned state (filter chips, settings draft, theme). No duplication.
+
+---
+
+## D14 — The word "accident" is never trusted on its own
+
+**Decision.** An article must match **an event term AND an Oil & Gas term** (or an explicitly
+Oil & Gas source such as a regulator feed) before it is even considered, and then must survive the
+hard exclusion list (mining, aviation, road, rail, residential fires, solar, wind, nuclear, …).
+
+**Consequences.** §4 of the brief — "the isolated presence of `fire`/`explosion` is not sufficient"
+— is enforced before any spend, and is covered by unit tests with real-world false positives.

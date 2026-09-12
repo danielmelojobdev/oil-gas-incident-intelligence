@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Oil & Gas Incident Intelligence",
+    "slug": "oil-gas-incident-intelligence",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "ogii",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0B1220",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ogii.incidentintelligence",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.ogii.incidentintelligence",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1220"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#E4572E"
+        }
+      ],
+      "expo-web-browser",
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "oil-gas-incident-intelligence",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Oil & Gas Incident Intelligence — monorepo (mobile app, scanner backend, domain core).",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*",
+    "apps/backend",
+    "apps/mobile"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "typecheck": "tsc -b tsconfig.build.json",
+    "typecheck:mobile": "npm run -w @ogii/mobile typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "backend:dev": "npm run -w @ogii/backend dev",
+    "backend:scan": "npm run -w @ogii/backend scan",
+    "backend:build": "npm run -w @ogii/backend build",
+    "mobile:start": "npm run -w @ogii/mobile start",
+    "mobile:ios": "npm run -w @ogii/mobile ios",
+    "mobile:android": "npm run -w @ogii/mobile android",
+    "verify": "npm run typecheck && npm run typecheck:mobile && npm run lint && npm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@types/node": "^22.7.5",
+    "eslint": "^9.13.0",
+    "globals": "^15.11.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.10.0",
+    "vitest": "^2.1.3"
+  }
+}

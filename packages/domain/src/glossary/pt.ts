@@ -1,0 +1,62 @@
+import type { Glossary } from './types';
+
+export const PT_GLOSSARY: Glossary = {
+  language: 'pt',
+  industryTerms: [
+    'petróleo', 'petroleo', 'gás', 'gas natural', 'hidrocarboneto', 'hidrocarbonetos',
+    'plataforma de petróleo', 'plataforma petrolífera', 'plataforma de produção',
+    'sonda de perfuração', 'navio-sonda', 'semissubmersível', 'jaqueta',
+    'fpso', 'fso', 'poço', 'poço de petróleo', 'cabeça de poço', 'submarino', 'subsea',
+    'refinaria', 'petroquímica', 'unidade de processamento de gás', 'upgn',
+    'gnl', 'terminal de gnl', 'gasoduto', 'oleoduto', 'duto', 'dutos',
+    'terminal marítimo', 'terminal de petróleo', 'tancagem', 'parque de tanques',
+    'exploração e produção', 'pré-sal', 'bacia de campos', 'bacia de santos',
+    'petrobras', 'anp', 'ibama', 'equinor', 'shell brasil', 'prio', '3r petroleum',
+    'enauta', 'petrorio', 'transpetro', 'braskem',
+  ],
+  eventTerms: [
+    'acidente', 'incidente', 'ocorrência', 'falha', 'emergência', 'incêndio', 'fogo',
+    'explosão', 'vazamento', 'derramamento', 'derrame', 'liberação', 'escape',
+    'parada', 'paralisação', 'evacuação', 'evacuados', 'abandono', 'colisão',
+    'naufrágio', 'afundamento', 'colapso', 'ruptura', 'rompimento', 'trinca',
+    'morte', 'mortes', 'mortos', 'vítima', 'vítimas', 'ferido', 'feridos',
+    'desaparecido', 'desaparecidos', 'investigação', 'interdição', 'autuação',
+  ],
+  strongPhrases: [
+    'acidente plataforma petróleo', 'incêndio plataforma', 'explosão plataforma',
+    'vazamento de gás', 'vazamento de petróleo', 'acidente em poço', 'controle de poço',
+    'falha de integridade de poço', 'falha de barreira', 'perda de contenção',
+    'perda de controle de poço', 'blowout', 'falha bop', 'falha do bop',
+    'incêndio refinaria', 'explosão refinaria', 'rompimento gasoduto',
+    'rompimento oleoduto', 'vazamento gasoduto', 'vazamento oleoduto',
+    'liberação de hidrocarbonetos', 'parada de emergência', 'parada de produção',
+    'derramamento de óleo', 'mancha de óleo', 'evacuação de plataforma',
+  ],
+  assetTerms: [
+    'plataforma', 'plataforma fixa', 'plataforma de produção', 'sonda', 'navio-sonda',
+    'fpso', 'fso', 'refinaria', 'gasoduto', 'oleoduto', 'terminal', 'upgn',
+    'unidade marítima', 'instalação submarina',
+  ],
+  wellTerms: [
+    'poço', 'controle de poço', 'integridade de poço', 'barreira de poço', 'blowout',
+    'kick', 'bop', 'preventor de erupção', 'árvore de natal', 'anm', 'cabeça de poço',
+    'coluna de produção', 'revestimento', 'cimentação', 'packer', 'anular',
+    'válvula de segurança de subsuperfície', 'dhsv', 'scssv', 'intervenção em poço',
+    'workover', 'abandono de poço', 'completação', 'perfuração',
+  ],
+  searchPhrases: [
+    'acidente plataforma petróleo', 'incêndio plataforma petróleo', 'explosão plataforma',
+    'vazamento de óleo plataforma', 'vazamento de gás refinaria', 'acidente refinaria',
+    'rompimento de gasoduto', 'rompimento de oleoduto', 'acidente em poço de petróleo',
+    'controle de poço incidente', 'falha de barreira poço', 'blowout poço',
+    'incêndio refinaria', 'derramamento de óleo mar', 'acidente FPSO',
+    'evacuação plataforma petróleo', 'parada de produção plataforma',
+  ],
+  exclusionTerms: [
+    'mineração', 'mina de carvão', 'barragem de rejeitos', 'garimpo',
+    'acidente aéreo', 'queda de avião', 'acidente de trânsito', 'acidente rodoviário',
+    'acidente ferroviário', 'incêndio residencial', 'incêndio em apartamento',
+    'usina solar', 'parque eólico', 'usina nuclear', 'indústria farmacêutica',
+    'indústria alimentícia', 'bolsa de valores', 'ações da', 'lucro trimestral',
+  ],
+};
